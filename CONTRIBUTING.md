@@ -2,7 +2,7 @@
 
 Hi there! We welcome all kinds of contributions; please feel free to start conversations, contribute and/or ask questions.
 
-Each project is released to the public under the project's open-source license and with our [Code of Conduct](#). By participating in any project, you agree to abide by the terms of the license and code of conduct.
+Each project is released to the public under the project's open-source license and with our [Code of Conduct](./CODE_OF_CONDUCT.md). By participating in any project, you agree to abide by the terms of the license and code of conduct.
 
 ---
 
