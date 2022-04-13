@@ -6,6 +6,8 @@ Hi, welcome to the future of ecommerce 👋🏾
 
 *"Commerce Layer’s entirely new approach makes commerce better in every way." —Filippo Conforti*
 
+---
+
 To get started, you can check out the following:
 
 - [Developer Resources](https://commercelayer.io/developers)
