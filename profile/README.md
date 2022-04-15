@@ -1,8 +1,8 @@
-Hi, welcome to the future of ecommerce 👋🏾
+# Hi, welcome to the future of ecommerce 👋🏾
 
 [![Commerce Layer Banner](https://data.commercelayer.app/assets/images/banners/violet.jpg)](https://commercelayer.io/why)
 
-[Commerce Layer](https://commercelayer.io) is a transactional commerce API and order management for international brands that let's you make any digital experience shoppable, anywhere. You can build a multi-market sales channel by integrating with tools like Shopify, Contentful, WordPress, or any other CMS you already love. Then, add Commerce Layer for multi-currency prices, distributed inventory, localized payment gateways, promotions, orders, subscriptions, [and more](https://commercelayer.io/features).
+[Commerce Layer](https://commercelayer.io) is a transactional commerce API and order management system for international brands that let's you make any digital experience shoppable, anywhere. You can build a multi-market sales channel by integrating with tools like Shopify, Contentful, WordPress, or any other CMS you already love. Then, add Commerce Layer for multi-currency prices, distributed inventory, localized payment gateways, promotions, orders, subscriptions, [and more](https://commercelayer.io/features).
 
 *"Commerce Layer’s entirely new approach makes commerce better in every way." —Filippo Conforti*
 
