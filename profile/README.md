@@ -19,4 +19,10 @@ To get started, you can check out the following:
 
 Commerce Layer is built by developers, for developers. More than just delivering a robust API with hundreds of endpoints and webhooks, we build tools on top of our API for you, including an extensive [documentation](https://docs.commercelayer.io), an [SDK](https://github.com/commercelayer/commercelayer-sdk), [CLI](https://github.com/commercelayer/commercelayer-cli), [React components library](https://github.com/commercelayer/commercelayer-react-components), [React checkout](https://github.com/commercelayer/commercelayer-react-checkout), [Dropin library](https://github.com/commercelayer/commercelayer-js-dropin), and more.
 
-Most of these tools are open-sourced and you can contribute to them by exploring the repositories below. Feel free to explore them right away and connect with us on [Twitter](https://twitter.com/commercelayer) or [LinkedIn](https://www.linkedin.com/company/commerce-layer). Cheers! 🖤
+Most of these tools are open-sourced and you can contribute to them by exploring the repositories below. Feel free to explore them right away and connect with us with the mediums below. Cheers! 🖤
+
+[![Join our Slack community](https://img.shields.io/badge/Slack-666EFF?style=for-the-badge&logo=slack&logoColor=white)](https://slack.commercelayer.app)
+[![Follow us on Twitter](https://img.shields.io/badge/Twitter-666EFF?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/commercelayer)
+[![Follow us on LinkedIn](https://img.shields.io/badge/LinkedIn-666EFF?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/company/commerce-layer)
+[![Subscribe to our YouTube channel](https://img.shields.io/badge/YouTube-666EFF?style=for-the-badge&logo=youtube&logoColor=white)](https://youtube.com/channel/UC42fupHoir5_E8jQfBY2EOA)
+[![Explore our Postman workspace](https://img.shields.io/badge/Postman-666EFF?style=for-the-badge&logo=postman&logoColor=white)](https://postman.com/commercelayer)
