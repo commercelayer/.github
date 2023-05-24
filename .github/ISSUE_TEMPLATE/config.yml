@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: View documentation
+    url: https://commercelayer.io/developers
+    about: Explore our API reference and open-source tools.
+  - name: Slack community
+    url: https://slack.commercelayer.app
+    about: Community discussions, interactive support, contributor help.
