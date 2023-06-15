@@ -1,13 +1,19 @@
-### What does this PR do?
+Closes #
 
-### Description of Task to be completed
+<!-- Thank you for contributing to Commerce Layer! If your PR is related to an issue, provide the number(s) above; if it resolves multiple issues, be sure to break them up (e.g. "closes #1000, closes #1001"). -->
 
-### How should this be manually tested?
+## What I did
 
-### What are the relevant issues this PR belongs to
+<!-- Briefly describe what your PR does -->
 
-#<NUMBER>
+## How to test
 
-### Any background context you want to add?
+<!-- Please include the steps to test your changes here -->
 
-### Screenshots (Optional)
+## Checklist
+
+<!-- Please check (put an "x" inside the "[ ]") the applicable items below to make sure your PR is ready to be reviewed. -->
+
+- [ ] Make sure your changes are tested (stories and/or unit, integration, or end-to-end tests).
+- [ ] Make sure to add/update documentation regarding your changes.
+- [ ] You are **NOT** deprecating/removing a feature.
