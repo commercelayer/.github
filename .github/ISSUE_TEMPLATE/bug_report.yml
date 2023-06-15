@@ -45,7 +45,6 @@ body:
           - Node: 18.14.0
           - npm: 9.5.1
           - Browser: Chrome 114.0.5735.106
-      render: markdown
   - type: textarea
     id: context
     attributes:
