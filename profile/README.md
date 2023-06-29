@@ -2,7 +2,7 @@
 
 [![Commerce Layer Banner](https://data.commercelayer.app/assets/images/banners/violet-half.jpg)](https://commercelayer.io/why)
 
-[Commerce Layer](https://commercelayer.io) is a composable commerce API and order management system for international brands. Whether you’re building a single-product store or an international ecommerce website to process millions of orders, [Commerce Layer provides](https://commercelayer.io/features) all the APIs and developer tools you need to make any digital experience shoppable, anywhere.
+[Commerce Layer](https://commercelayer.io) is a composable commerce API and order management system for international brands. Whether you’re building a single-product store or an international ecommerce website to process millions of orders, [Commerce Layer provides](https://commercelayer.io/features) all the API endpoints, micro frontends, and developer tools you need to make any digital experience shoppable, anywhere.
 
 ---
 
@@ -17,9 +17,9 @@ To get started, you can check out the following:
 
 ## Open Source Contributions
 
-Commerce Layer is built by developers, for developers. More than just delivering a robust API with hundreds of endpoints and webhooks, we build tools on top of our API for you, including an extensive [documentation](https://docs.commercelayer.io), an [SDK](https://github.com/commercelayer/commercelayer-sdk), [CLI](https://github.com/commercelayer/commercelayer-cli), [React components library](https://github.com/commercelayer/commercelayer-react-components), [Hosted Checkout](https://github.com/commercelayer/commercelayer-react-checkout), [Hosted Cart](https://github.com/commercelayer/commercelayer-cart), [Hosted My Account](https://github.com/commercelayer/commercelayer-my-account), [Microstores](https://github.com/commercelayer/commercelayer-microstore), [Demo Store](https://github.com/commercelayer/demo-store), [Dropin library](https://github.com/commercelayer/drop-in.js), and more.
+Commerce Layer is built by developers, for developers. More than just delivering a robust API with hundreds of endpoints and webhooks, we build tools on top of our API for you, including an extensive [documentation](https://docs.commercelayer.io), a [curated collection of examples](https://github.com/commercelayer/examples), a [JavaScript SDK](https://github.com/commercelayer/commercelayer-sdk), [CLI](https://github.com/commercelayer/commercelayer-cli), [Drop-in library](https://github.com/commercelayer/drop-in.js), [React components library](https://github.com/commercelayer/commercelayer-react-components), [Hosted Checkout](https://github.com/commercelayer/commercelayer-react-checkout), [Hosted Cart](https://github.com/commercelayer/commercelayer-cart), [Hosted My Account](https://github.com/commercelayer/commercelayer-my-account), [Hosted Identity](https://github.com/commercelayer/mfe-identity), [Microstores](https://github.com/commercelayer/commercelayer-microstore), [Demo Store](https://github.com/commercelayer/demo-store), and more.
 
-Most of these tools are open-sourced and you can contribute to them by exploring the repositories below. Feel free to explore them right away and connect with us with the mediums below. Cheers! 🖤
+All of these tools are open-sourced and you can contribute to them by exploring the repositories below. Feel free to explore them right away and connect with us anywhere on the internet. Cheers! 🖤
 
 [![Join our Slack community](https://img.shields.io/badge/Slack-666EFF?style=for-the-badge&logo=slack&logoColor=white)](https://slack.commercelayer.app)
 [![Follow us on Twitter](https://img.shields.io/badge/Twitter-666EFF?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com/commercelayer)
