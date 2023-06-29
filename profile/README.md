@@ -2,7 +2,7 @@
 
 [![Commerce Layer Banner](https://data.commercelayer.app/assets/images/banners/violet-half.jpg)](https://commercelayer.io/why)
 
-[Commerce Layer](https://commercelayer.io) is a composable commerce API and order management system for international brands. Whether you’re building a single-product store or an international ecommerce website to process millions of orders, [Commerce Layer provides](https://commercelayer.io/features) all the API endpoints, micro-frontends, and developer tools you need to make any digital experience shoppable, anywhere.
+[Commerce Layer](https://commercelayer.io) is a composable commerce API and order management system for international brands. Whether you’re building a single-product store or an international ecommerce website to process millions of orders, [Commerce Layer provides](https://commercelayer.io/features) all the API endpoints, micro frontends, and developer tools you need to make any digital experience shoppable, anywhere.
 
 ---
 
