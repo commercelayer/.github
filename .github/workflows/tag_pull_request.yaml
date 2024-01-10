@@ -1,0 +1,38 @@
+name: Tag Pull Request
+
+on: 
+  workflow_call:
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v4
+
+      - name: Delete tag
+        uses: actions/github-script@v6
+        with:
+          script: |
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: "tags/pr-${{ github.event.number }}"
+              })
+            } catch (error) {
+              console.log(`${error.message} (pr-${{ github.event.number }})`)
+            }
+
+      - name: Create tag
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+          script: |
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "refs/tags/pr-${{ github.event.number }}",
+              sha: "${{ github.event.pull_request.head.sha }}"
+            })
