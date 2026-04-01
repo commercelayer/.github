@@ -1,0 +1,52 @@
+name: Detect prerelease tag
+description: Detect latest stable tag and derive next auto-deps prerelease tag
+
+outputs:
+  name:
+    description: Derived prerelease tag name
+    value: ${{ steps.tag.outputs.name }}
+  stable:
+    description: Latest stable tag
+    value: ${{ steps.tag.outputs.stable }}
+  base_version:
+    description: Base version for the next prerelease tag
+    value: ${{ steps.tag.outputs.base_version }}
+
+runs:
+  using: composite
+  steps:
+    - id: tag
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        git fetch --tags --force >/dev/null 2>&1 || true
+
+        LATEST_STABLE="$(git tag --list 'v*' --sort=version:refname \
+          | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+          | tail -1)"
+
+        if [ -z "$LATEST_STABLE" ]; then
+          echo "No stable tag found - falling back to v0.0.0"
+          LATEST_STABLE="v0.0.0"
+        fi
+
+        echo "Latest stable: $LATEST_STABLE"
+
+        VERSION="${LATEST_STABLE#v}"
+        MAJOR="$(echo "$VERSION" | cut -d. -f1)"
+        MINOR="$(echo "$VERSION" | cut -d. -f2)"
+        PATCH="$(echo "$VERSION" | cut -d. -f3)"
+
+        NEXT_PATCH=$((PATCH + 1))
+        BASE_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+
+        TIMESTAMP="$(date -u +%Y%m%d%H%M)"
+        PRERELEASE_BASE="${BASE_VERSION}-auto-deps-${TIMESTAMP}"
+
+        COUNT="$(git tag --list "${PRERELEASE_BASE}.*" | wc -l | tr -d ' ')"
+        TAG="${PRERELEASE_BASE}.${COUNT}"
+
+        echo "name=$TAG" >> "$GITHUB_OUTPUT"
+        echo "stable=$LATEST_STABLE" >> "$GITHUB_OUTPUT"
+        echo "base_version=$BASE_VERSION" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,42 @@
+name: Run guarded command
+description: Run a command, capture failures, expose outputs, and continue
+
+inputs:
+  name:
+    required: true
+  command:
+    required: true
+  log_file:
+    required: false
+    default: /tmp/run-guarded.log
+  tail_lines:
+    required: false
+    default: "200"
+
+outputs:
+  status:
+    value: ${{ steps.run.outputs.status }}
+  log_file:
+    value: ${{ steps.run.outputs.log_file }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      run: |
+        NAME='${{ inputs.name }}'
+        COMMAND='${{ inputs.command }}'
+        LOG_FILE='${{ inputs.log_file }}'
+
+        mkdir -p "$(dirname "$LOG_FILE")"
+
+        echo "log_file=$LOG_FILE" >> "$GITHUB_OUTPUT"
+
+        if bash -lc "$COMMAND" >"$LOG_FILE" 2>&1; then
+          echo "status=success" >> "$GITHUB_OUTPUT"
+        else
+          EXIT_CODE=$?
+          echo "status=failure" >> "$GITHUB_OUTPUT"
+          echo "::warning::$NAME failed (exit $EXIT_CODE) - tracked in PR body, continuing"
+        fi

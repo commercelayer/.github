@@ -1,0 +1,72 @@
+name: Render dependency body
+description: Render an issue or PR markdown body from file-based parts
+
+inputs:
+  title:
+    description: Heading title without leading ##
+    required: true
+  header_file:
+    description: File containing header markdown
+    required: false
+    default: ""
+  intro_markdown:
+    description: Introductory markdown block
+    required: false
+    default: ""
+  summary_file:
+    description: File containing summary markdown
+    required: false
+    default: ""
+  sections_file:
+    description: File containing additional sections markdown
+    required: false
+    default: ""
+  output_file:
+    description: Output markdown file path
+    required: true
+
+outputs:
+  file:
+    description: Rendered output file path
+    value: ${{ steps.render.outputs.file }}
+
+runs:
+  using: composite
+  steps:
+    - id: render
+      shell: bash
+      env:
+        INPUT_TITLE: ${{ inputs.title }}
+        INPUT_HEADER_FILE: ${{ inputs.header_file }}
+        INPUT_INTRO: ${{ inputs.intro_markdown }}
+        INPUT_SUMMARY_FILE: ${{ inputs.summary_file }}
+        INPUT_SECTIONS_FILE: ${{ inputs.sections_file }}
+        INPUT_OUTPUT_FILE: ${{ inputs.output_file }}
+      run: |
+        set -euo pipefail
+
+        {
+          echo "## ${INPUT_TITLE}"
+          echo
+
+          if [ -n "$INPUT_HEADER_FILE" ] && [ -f "$INPUT_HEADER_FILE" ]; then
+            cat "$INPUT_HEADER_FILE"
+            echo
+          fi
+
+          if [ -n "$INPUT_INTRO" ]; then
+            printf '%s\n' "$INPUT_INTRO"
+            echo
+          fi
+
+          if [ -n "$INPUT_SUMMARY_FILE" ] && [ -f "$INPUT_SUMMARY_FILE" ]; then
+            cat "$INPUT_SUMMARY_FILE"
+            echo
+          fi
+
+          if [ -n "$INPUT_SECTIONS_FILE" ] && [ -f "$INPUT_SECTIONS_FILE" ]; then
+            cat "$INPUT_SECTIONS_FILE"
+          fi
+        } > "$INPUT_OUTPUT_FILE"
+
+        echo "file=$INPUT_OUTPUT_FILE" >> "$GITHUB_OUTPUT"
