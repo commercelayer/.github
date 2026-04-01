@@ -1,0 +1,81 @@
+name: Render guarded summary
+description: Build a markdown summary for guarded command results
+
+inputs:
+  check_status:
+    required: false
+    default: ""
+  check_log_file:
+    required: false
+    default: ""
+  build_status:
+    required: false
+    default: ""
+  build_log_file:
+    required: false
+    default: ""
+  test_status:
+    required: false
+    default: ""
+  test_log_file:
+    required: false
+    default: ""
+  tail_lines:
+    required: false
+    default: "50"
+
+outputs:
+  body:
+    value: ${{ steps.render.outputs.body }}
+
+runs:
+  using: composite
+  steps:
+    - id: render
+      shell: bash
+      env:
+        CHECK_STATUS: ${{ inputs.check_status }}
+        CHECK_LOG_FILE: ${{ inputs.check_log_file }}
+        BUILD_STATUS: ${{ inputs.build_status }}
+        BUILD_LOG_FILE: ${{ inputs.build_log_file }}
+        TEST_STATUS: ${{ inputs.test_status }}
+        TEST_LOG_FILE: ${{ inputs.test_log_file }}
+        TAIL_LINES: ${{ inputs.tail_lines }}
+      run: |
+        DELIM="GH_EOF_${RANDOM}_${RANDOM}"
+
+        print_log_section() {
+          local title="$1"
+          local status="$2"
+          local log_file="$3"
+
+          [ "$status" = "failure" ] || return 0
+          [ -n "$log_file" ] || return 0
+          [ -f "$log_file" ] || return 0
+          [ -s "$log_file" ] || return 0
+
+          echo "<details><summary>${title} output</summary>"
+          echo
+          echo '```'
+          tail -n "$TAIL_LINES" "$log_file"
+          echo '```'
+          echo
+          echo "</details>"
+          echo
+        }
+
+        {
+          echo "body<<$DELIM"
+          echo "## Dependency update results"
+          echo
+          echo "- Check: ${CHECK_STATUS:-skipped}"
+          echo "- Build: ${BUILD_STATUS:-skipped}"
+          echo "- Test: ${TEST_STATUS:-skipped}"
+          echo
+
+          print_log_section "Check" "$CHECK_STATUS" "$CHECK_LOG_FILE"
+          print_log_section "Build" "$BUILD_STATUS" "$BUILD_LOG_FILE"
+          print_log_section "Test" "$TEST_STATUS" "$TEST_LOG_FILE"
+
+          echo "$DELIM"
+        } >> "$GITHUB_OUTPUT"

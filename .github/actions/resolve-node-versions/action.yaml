@@ -1,0 +1,71 @@
+name: Resolve Node versions
+description: Auto-detect Node.js and pnpm versions from project files, with optional manual override
+
+inputs:
+  node_version:
+    description: Override Node.js version (skips auto-detection)
+    required: false
+    default: ""
+  pnpm_version:
+    description: Override pnpm version (skips auto-detection)
+    required: false
+    default: ""
+
+outputs:
+  node_version:
+    description: Resolved Node.js version
+    value: ${{ steps.resolve.outputs.node_version }}
+  pnpm_version:
+    description: Resolved pnpm version
+    value: ${{ steps.resolve.outputs.pnpm_version }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        INPUT_NODE_VERSION: ${{ inputs.node_version }}
+        INPUT_PNPM_VERSION: ${{ inputs.pnpm_version }}
+      run: |
+        set -euo pipefail
+
+        # ── Node.js ───────────────────────────────────────────────────────────
+        if [ -n "$INPUT_NODE_VERSION" ]; then
+          NODE_VERSION="$INPUT_NODE_VERSION"
+        elif [ -f .nvmrc ]; then
+          NODE_VERSION="$(tr -d '[:space:]' < .nvmrc)"
+        elif [ -f .node-version ]; then
+          NODE_VERSION="$(tr -d '[:space:]' < .node-version)"
+        elif [ -f package.json ] && jq -e '.volta.node' package.json > /dev/null 2>&1; then
+          NODE_VERSION="$(jq -r '.volta.node' package.json)"
+        elif [ -f package.json ] && jq -e '.engines.node' package.json > /dev/null 2>&1; then
+          # Strip range operators (>=, ^, ~) and keep just the major version as "N.x"
+          RAW="$(jq -r '.engines.node' package.json)"
+          NODE_VERSION="$(echo "$RAW" | sed -E 's/[^0-9.x*]//g; s/^([0-9]+).*/\1.x/')"
+        else
+          NODE_VERSION="24.x"
+        fi
+
+        # ── pnpm ──────────────────────────────────────────────────────────────
+        if [ -n "$INPUT_PNPM_VERSION" ]; then
+          PNPM_VERSION="$INPUT_PNPM_VERSION"
+        elif [ -f package.json ] && jq -e '.packageManager' package.json > /dev/null 2>&1 \
+            && jq -r '.packageManager' package.json | grep -q '^pnpm@'; then
+          # packageManager field (e.g. "pnpm@10.6.2+sha512...") is already read by
+          # pnpm/action-setup automatically — passing version on top causes a conflict,
+          # so we output empty string and let the action use packageManager directly.
+          PNPM_VERSION=""
+        elif [ -f package.json ] && jq -e '.volta.pnpm' package.json > /dev/null 2>&1; then
+          PNPM_VERSION="$(jq -r '.volta.pnpm' package.json)"
+        elif [ -f package.json ] && jq -e '.engines.pnpm' package.json > /dev/null 2>&1; then
+          PNPM_VERSION="$(jq -r '.engines.pnpm' package.json)"
+        else
+          PNPM_VERSION="10.x"
+        fi
+
+        echo "node_version=$NODE_VERSION" >> "$GITHUB_OUTPUT"
+        echo "pnpm_version=$PNPM_VERSION" >> "$GITHUB_OUTPUT"
+
+        echo "Resolved Node.js: $NODE_VERSION"
+        echo "Resolved pnpm:    ${PNPM_VERSION:-"(from packageManager field)"}"

@@ -1,0 +1,246 @@
+name: Shift colliding milestones
+description: Shift open versioned milestones up from a target version, then create the target milestone
+
+inputs:
+  prefix:
+    description: Milestone title prefix, e.g. dashboard-api (defaults to repo name)
+    required: false
+    default: ""
+
+  target_version:
+    description: Target version, e.g. v4.1.2
+    required: true
+
+  state:
+    description: Milestone state to inspect
+    required: false
+    default: open
+
+  create_if_missing:
+    description: Create target milestone even if no conflict exists
+    required: false
+    default: "true"
+
+outputs:
+  milestone_number:
+    value: ${{ steps.shift.outputs.milestone_number }}
+
+  milestone_title:
+    value: ${{ steps.shift.outputs.milestone_title }}
+
+  shifted:
+    value: ${{ steps.shift.outputs.shifted }}
+
+  created:
+    value: ${{ steps.shift.outputs.created }}
+
+runs:
+  using: composite
+  steps:
+    - id: shift
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        INPUT_PREFIX='${{ inputs.prefix }}'
+        TARGET_VERSION='${{ inputs.target_version }}'
+        STATE='${{ inputs.state }}'
+        CREATE_IF_MISSING='${{ inputs.create_if_missing }}'
+
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is required for this action" >&2
+          exit 1
+        fi
+
+        if [ -z "$INPUT_PREFIX" ]; then
+          PREFIX="${GITHUB_REPOSITORY##*/}"
+        else
+          PREFIX="$INPUT_PREFIX"
+        fi
+
+        if ! command -v jq >/dev/null 2>&1; then
+          echo "jq is required but not installed" >&2
+          exit 1
+        fi
+
+        if [[ ! "$TARGET_VERSION" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+          echo "target_version must look like vMAJOR.MINOR.PATCH; got: $TARGET_VERSION" >&2
+          exit 1
+        fi
+
+        TARGET_MAJOR="$(echo "$TARGET_VERSION" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\1/')"
+        TARGET_MINOR="$(echo "$TARGET_VERSION" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\2/')"
+        TARGET_PATCH="$(echo "$TARGET_VERSION" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\3/')"
+        TARGET_TITLE="${PREFIX} ${TARGET_VERSION}"
+
+        LOG_FILE="/tmp/shift-milestones.log"
+        : > "$LOG_FILE"
+
+        log() {
+          echo "$1" | tee -a "$LOG_FILE"
+        }
+
+        fail_with_response() {
+          local message="$1"
+          local response_file="$2"
+          log "ERROR: $message"
+          if [ -f "$response_file" ]; then
+            log "--- GitHub API response start ---"
+            cat "$response_file" | tee -a "$LOG_FILE"
+            log "--- GitHub API response end ---"
+          fi
+          exit 1
+        }
+
+        log "Using prefix: $PREFIX"
+        log "Target version: $TARGET_VERSION"
+        log "Target title: $TARGET_TITLE"
+        log "Target line: ${PREFIX} v${TARGET_MAJOR}.${TARGET_MINOR}.x"
+
+        gh api \
+          --paginate \
+          -H "Accept: application/vnd.github+json" \
+          "repos/${GITHUB_REPOSITORY}/milestones?state=${STATE}&per_page=100" \
+          > /tmp/milestones.json
+
+        jq -s 'flatten' /tmp/milestones.json > /tmp/milestones.flat.json
+
+        log "Open milestones in repo:"
+        jq -r '.[].title' /tmp/milestones.flat.json | sed 's/^/- /' | tee -a "$LOG_FILE"
+
+        jq -r \
+          --arg prefix "$PREFIX" \
+          --argjson target_major "$TARGET_MAJOR" \
+          --argjson target_minor "$TARGET_MINOR" \
+          --argjson target_patch "$TARGET_PATCH" '
+          def version_only($title; $prefix):
+            $title | sub("^" + $prefix + " "; "");
+
+          def ver_obj($s):
+            ($s | capture("^v(?<maj>[0-9]+)\\.(?<min>[0-9]+)\\.(?<pat>[0-9]+)$")
+            | {
+                maj: (.maj | tonumber),
+                min: (.min | tonumber),
+                pat: (.pat | tonumber)
+              });
+
+          [
+            .[]
+            | select(.title | startswith($prefix + " "))
+            | . + { version: version_only(.title; $prefix) }
+            | select(.version | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))
+            | . + { ver: ver_obj(.version) }
+            | select(.ver.maj == $target_major)
+            | select(.ver.min == $target_minor)
+            | select(.ver.pat >= $target_patch)
+          ]
+          | sort_by(.ver.pat)
+          | reverse
+          | .[]
+          | @base64
+        ' /tmp/milestones.flat.json > /tmp/shift_candidates.txt
+
+        SHIFTED=false
+
+        if [ -s /tmp/shift_candidates.txt ]; then
+          SHIFTED=true
+          log "Shift plan:"
+          while IFS= read -r row; do
+            obj="$(printf '%s' "$row" | base64 -d)"
+            old_title="$(printf '%s' "$obj" | jq -r '.title')"
+            version="$(printf '%s' "$obj" | jq -r '.version')"
+
+            major="$(echo "$version" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\1/')"
+            minor="$(echo "$version" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\2/')"
+            patch="$(echo "$version" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\3/')"
+
+            new_patch=$((patch + 1))
+            new_version="v${major}.${minor}.${new_patch}"
+            new_title="${PREFIX} ${new_version}"
+
+            log "- ${old_title} -> ${new_title}"
+          done < /tmp/shift_candidates.txt
+        else
+          log "No colliding milestones found to shift."
+        fi
+
+        if [ -s /tmp/shift_candidates.txt ]; then
+          while IFS= read -r row; do
+            obj="$(printf '%s' "$row" | base64 -d)"
+            number="$(printf '%s' "$obj" | jq -r '.number')"
+            old_title="$(printf '%s' "$obj" | jq -r '.title')"
+            version="$(printf '%s' "$obj" | jq -r '.version')"
+
+            major="$(echo "$version" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\1/')"
+            minor="$(echo "$version" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\2/')"
+            patch="$(echo "$version" | sed -E 's/^v([0-9]+)\.([0-9]+)\.([0-9]+)$/\3/')"
+
+            new_patch=$((patch + 1))
+            new_version="v${major}.${minor}.${new_patch}"
+            new_title="${PREFIX} ${new_version}"
+
+            log "PATCH milestone #${number}: ${old_title} -> ${new_title}"
+
+            RESPONSE_FILE="$(mktemp)"
+            if ! gh api \
+              --method PATCH \
+              -H "Accept: application/vnd.github+json" \
+              "repos/${GITHUB_REPOSITORY}/milestones/${number}" \
+              -f title="${new_title}" \
+              >"$RESPONSE_FILE" 2>&1; then
+              fail_with_response "Failed renaming milestone #${number} (${old_title}) to ${new_title}" "$RESPONSE_FILE"
+            fi
+
+            log "PATCH ok for #${number}"
+          done < /tmp/shift_candidates.txt
+        fi
+
+        CREATED=false
+        CREATED_NUMBER=""
+        CREATED_TITLE=""
+
+        gh api \
+          --paginate \
+          -H "Accept: application/vnd.github+json" \
+          "repos/${GITHUB_REPOSITORY}/milestones?state=${STATE}&per_page=100" \
+          > /tmp/milestones.after.json
+
+        jq -s 'flatten' /tmp/milestones.after.json > /tmp/milestones.after.flat.json
+
+        log "Open milestones after shifting:"
+        jq -r '.[].title' /tmp/milestones.after.flat.json | sed 's/^/- /' | tee -a "$LOG_FILE"
+
+        existing_number="$(
+          jq -r --arg target "$TARGET_TITLE" '
+            map(select(.title == $target)) | first | .number // empty
+          ' /tmp/milestones.after.flat.json
+        )"
+
+        if [ -n "$existing_number" ]; then
+          log "Target milestone already exists after shifting: ${TARGET_TITLE} (#${existing_number})"
+          CREATED_NUMBER="$existing_number"
+          CREATED_TITLE="$TARGET_TITLE"
+        elif [ "$CREATE_IF_MISSING" = "true" ]; then
+          log "Creating target milestone: ${TARGET_TITLE}"
+          RESPONSE_FILE="$(mktemp)"
+          if ! gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${GITHUB_REPOSITORY}/milestones" \
+            -f title="${TARGET_TITLE}" \
+            >"$RESPONSE_FILE" 2>&1; then
+            fail_with_response "Failed creating milestone ${TARGET_TITLE}" "$RESPONSE_FILE"
+          fi
+
+          CREATED=true
+          CREATED_NUMBER="$(jq -r '.number' "$RESPONSE_FILE")"
+          CREATED_TITLE="$(jq -r '.title' "$RESPONSE_FILE")"
+          log "Created milestone ${CREATED_TITLE} (#${CREATED_NUMBER})"
+        else
+          log "Target milestone missing and create_if_missing=false"
+        fi
+
+        echo "shifted=${SHIFTED}" >> "$GITHUB_OUTPUT"
+        echo "created=${CREATED}" >> "$GITHUB_OUTPUT"
+        echo "milestone_number=${CREATED_NUMBER}" >> "$GITHUB_OUTPUT"
+        echo "milestone_title=${CREATED_TITLE}" >> "$GITHUB_OUTPUT"

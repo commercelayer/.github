@@ -1,0 +1,29 @@
+name: Compute branch metadata
+description: Compute date, timestamp, and dependency update branch name
+
+outputs:
+  date:
+    description: UTC date in YYYY-MM-DD format
+    value: ${{ steps.compute.outputs.date }}
+  timestamp:
+    description: UTC timestamp in YYYYMMDDHHMM format
+    value: ${{ steps.compute.outputs.timestamp }}
+  name:
+    description: Branch name
+    value: ${{ steps.compute.outputs.name }}
+
+runs:
+  using: composite
+  steps:
+    - id: compute
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        DATE="$(date -u +%Y-%m-%d)"
+        TS="$(date -u +%Y%m%d%H%M)"
+        BRANCH="chore/deps-update-${TS}"
+
+        echo "date=$DATE" >> "$GITHUB_OUTPUT"
+        echo "timestamp=$TS" >> "$GITHUB_OUTPUT"
+        echo "name=$BRANCH" >> "$GITHUB_OUTPUT"

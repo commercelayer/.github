@@ -1,0 +1,83 @@
+name: Resolve tracking issue
+description: Reuse an existing issue or create a new tracking issue
+
+inputs:
+  issue_number:
+    description: Existing issue number to reuse
+    required: false
+    default: ""
+  title:
+    description: Title for a new issue
+    required: true
+  body_file:
+    description: Body file for a new issue
+    required: false
+    default: ""
+  labels:
+    description: Comma-separated labels for a new issue
+    required: false
+    default: "dependencies"
+
+outputs:
+  number:
+    description: Issue number
+    value: ${{ steps.resolve.outputs.number }}
+  url:
+    description: Issue URL
+    value: ${{ steps.resolve.outputs.url }}
+  created:
+    description: Whether a new issue was created
+    value: ${{ steps.resolve.outputs.created }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+        INPUT_TITLE: ${{ inputs.title }}
+        INPUT_BODY_FILE: ${{ inputs.body_file }}
+        INPUT_LABELS: ${{ inputs.labels }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is required for this action" >&2
+          exit 1
+        fi
+
+        if [ -n "$INPUT_ISSUE_NUMBER" ]; then
+          ISSUE_NUMBER="$INPUT_ISSUE_NUMBER"
+          ISSUE_URL="https://github.com/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}"
+          CREATED=false
+        else
+          if [ -z "$INPUT_BODY_FILE" ] || [ ! -f "$INPUT_BODY_FILE" ]; then
+            echo "body_file is required when creating a new issue" >&2
+            exit 1
+          fi
+
+          LABEL_ARGS=()
+          IFS=',' read -r -a LABELS <<< "$INPUT_LABELS"
+          for raw_label in "${LABELS[@]}"; do
+            label="$(echo "$raw_label" | xargs)"
+            if [ -n "$label" ]; then
+              LABEL_ARGS+=(--label "$label")
+            fi
+          done
+
+          ISSUE_URL="$(
+            gh issue create \
+              --title "$INPUT_TITLE" \
+              --body-file "$INPUT_BODY_FILE" \
+              --assignee "commercelayer-ci" \
+              "${LABEL_ARGS[@]}"
+          )"
+
+          ISSUE_NUMBER="${ISSUE_URL##*/}"
+          CREATED=true
+        fi
+
+        echo "number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+        echo "url=$ISSUE_URL" >> "$GITHUB_OUTPUT"
+        echo "created=$CREATED" >> "$GITHUB_OUTPUT"

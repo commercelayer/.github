@@ -1,0 +1,115 @@
+name: Collect NCU report
+description: Run npm-check-updates and render grouped package update output
+
+inputs:
+  command:
+    description: Full command to execute
+    required: true
+  empty_message:
+    description: Message to use when no updates are found
+    required: false
+    default: No updates found.
+  output_file:
+    description: Output file path
+    required: true
+
+outputs:
+  output:
+    description: Rendered grouped report
+    value: ${{ steps.collect.outputs.output }}
+  file:
+    description: Output file path
+    value: ${{ steps.collect.outputs.file }}
+
+runs:
+  using: composite
+  steps:
+    - id: collect
+      shell: bash
+      env:
+        INPUT_COMMAND: ${{ inputs.command }}
+        INPUT_EMPTY_MESSAGE: ${{ inputs.empty_message }}
+        INPUT_OUTPUT_FILE: ${{ inputs.output_file }}
+      run: |
+        set -euo pipefail
+
+        export RAW_FILE="$(mktemp)"
+
+        bash -lc "$INPUT_COMMAND" 2>&1 \
+          | sed -r 's/\x1B\[[0-9;]*[mK]//g' \
+          > "$RAW_FILE" || true
+
+        python <<'PY' > "$INPUT_OUTPUT_FILE"
+        import os
+        import re
+
+        root = os.getcwd()
+        raw_file = os.environ["RAW_FILE"]
+        empty_message = os.environ["INPUT_EMPTY_MESSAGE"]
+
+        current_file = None
+        current_lines = []
+        blocks = []
+
+        checking_re = re.compile(r'^(?:Checking|Upgrading)\s+(.+package\.json)\s*$')
+        update_re = re.compile(r'^\s*\S.*(?:->|→).*$')
+        all_ok_re = re.compile(r'^All dependencies match the semver package versions')
+
+        def normalize_path(path: str) -> str:
+            path = path.strip()
+            if path.startswith(root + os.sep):
+                path = os.path.relpath(path, root)
+            return path
+
+        def flush():
+            global current_file, current_lines, blocks
+            if current_file and current_lines:
+                blocks.append(current_file)
+                blocks.extend([f"  {line.strip()}" for line in current_lines])
+                blocks.append("")
+            current_file = None
+            current_lines = []
+
+        with open(raw_file) as f:
+            for raw in f:
+                line = raw.rstrip("\n")
+
+                m = checking_re.match(line)
+                if m:
+                    flush()
+                    current_file = normalize_path(m.group(1))
+                    current_lines = []
+                    continue
+
+                if current_file is None:
+                    continue
+
+                if all_ok_re.match(line):
+                    flush()
+                    continue
+
+                if line.startswith("Run ncu ") or line.startswith("Run npm "):
+                    flush()
+                    continue
+
+                if line.startswith("[") and "%" in line:
+                    continue
+
+                if update_re.match(line):
+                    current_lines.append(line)
+
+        flush()
+
+        if blocks:
+            print("\n".join(blocks).rstrip())
+        else:
+            print(empty_message)
+        PY
+
+        {
+          echo "output<<EOF"
+          cat "$INPUT_OUTPUT_FILE"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+        echo "file=$INPUT_OUTPUT_FILE" >> "$GITHUB_OUTPUT"
