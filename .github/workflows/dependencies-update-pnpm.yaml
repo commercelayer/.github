@@ -125,6 +125,9 @@ jobs:
         id: branch
         uses: commercelayer/.github/.github/actions/compute-branch-metadata@main
 
+      - name: Delete existing dep-update branches
+        uses: commercelayer/.github/.github/actions/cleanup-dep-branches@main
+
       - name: Create branch
         shell: bash
         run: |
@@ -193,20 +196,10 @@ jobs:
 
       - name: Commit changes
         id: commit
-        shell: bash
-        run: |
-          git config user.name "commercelayer-ci"
-          git config user.email "85679179+commercelayer-ci@users.noreply.github.com"
-
-          git add package.json pnpm-lock.yaml
-          git add '**/package.json' 2>/dev/null || true
-
-          if git diff --cached --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            git commit -m "chore: update pnpm dependencies"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
+        uses: commercelayer/.github/.github/actions/commit-dep-changes@main
+        with:
+          files: "package.json pnpm-lock.yaml **/package.json"
+          message: "chore: update pnpm dependencies"
 
       - name: Detect prerelease tag
         id: tag
@@ -224,11 +217,19 @@ jobs:
           git push origin "${{ steps.branch.outputs.name }}"
           git push origin "${{ steps.tag.outputs.name }}"
 
+      - name: Resolve issue milestone
+        id: issue_milestone
+        if: ${{ inputs.use_milestone && inputs.issue_number != '' }}
+        uses: commercelayer/.github/.github/actions/resolve-issue-milestone@main
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
+
       - name: Shift colliding milestones
         id: milestone
         if: |
           steps.commit.outputs.changed == 'true' &&
-          inputs.use_milestone
+          inputs.use_milestone &&
+          steps.issue_milestone.outputs.number == ''
         uses: commercelayer/.github/.github/actions/shift-milestones@main
         env:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
@@ -280,12 +281,12 @@ jobs:
           EOF
           echo "file=/tmp/pnpm-issue-header.md" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare issue sections
-        id: issue_sections
-        if: ${{ steps.commit.outputs.changed == 'true' && inputs.issue_number == '' }}
+      - name: Prepare sections
+        id: sections
+        if: ${{ steps.commit.outputs.changed == 'true' }}
         shell: bash
         run: |
-          cat > /tmp/pnpm-issue-sections.md <<EOF
+          cat > /tmp/pnpm-sections.md <<EOF
           ### Semver bump log
 
           \`\`\`
@@ -305,7 +306,7 @@ jobs:
           \`\`\`
 
           EOF
-          echo "file=/tmp/pnpm-issue-sections.md" >> "$GITHUB_OUTPUT"
+          echo "file=/tmp/pnpm-sections.md" >> "$GITHUB_OUTPUT"
 
       - name: Render issue body
         id: issue_body
@@ -317,7 +318,7 @@ jobs:
           intro_markdown: |
             This issue tracks the automated dependency update. It will be closed automatically when the linked PR is merged.
           summary_file: ${{ steps.summary_file.outputs.file }}
-          sections_file: ${{ steps.issue_sections.outputs.file }}
+          sections_file: ${{ steps.sections.outputs.file }}
           output_file: /tmp/issue-body.md
 
       - name: Resolve tracking issue
@@ -333,14 +334,16 @@ jobs:
           labels: dependencies
 
       - name: Assign milestone to issue
-        if: ${{ steps.commit.outputs.changed == 'true' && inputs.use_milestone && steps.milestone.outputs.milestone_number != '' }}
+        if: |
+          steps.commit.outputs.changed == 'true' &&
+          inputs.use_milestone &&
+          (steps.milestone.outputs.milestone_number != '' || steps.issue_milestone.outputs.number != '')
+        uses: commercelayer/.github/.github/actions/assign-milestone@main
         env:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
-        run: |
-          gh api \
-            --method PATCH \
-            "repos/${GITHUB_REPOSITORY}/issues/${{ steps.issue.outputs.number }}" \
-            -f milestone="${{ steps.milestone.outputs.milestone_number }}"
+        with:
+          issue_number: ${{ steps.issue.outputs.number }}
+          milestone_number: ${{ steps.milestone.outputs.milestone_number != '' && steps.milestone.outputs.milestone_number || steps.issue_milestone.outputs.number }}
 
       - name: Prepare PR header
         id: pr_header
@@ -357,33 +360,6 @@ jobs:
           EOF
           echo "file=/tmp/pnpm-pr-header.md" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare PR sections
-        id: pr_sections
-        if: ${{ steps.commit.outputs.changed == 'true' }}
-        shell: bash
-        run: |
-          cat > /tmp/pnpm-pr-sections.md <<EOF
-          ### Semver bump log
-
-          \`\`\`
-          $(cat /tmp/pnpm-semver.log)
-          \`\`\`
-
-          ### Audit log
-
-          \`\`\`
-          ${{ steps.audit.outputs.output }}
-          \`\`\`
-
-          ### Major updates log not updated
-
-          \`\`\`
-          $(cat /tmp/pnpm-major.log)
-          \`\`\`
-
-          EOF
-          echo "file=/tmp/pnpm-pr-sections.md" >> "$GITHUB_OUTPUT"
-
       - name: Render PR body
         id: pr_body
         if: ${{ steps.commit.outputs.changed == 'true' }}
@@ -394,7 +370,7 @@ jobs:
           intro_markdown: |
             Automated dependency update via pnpm. Review the dependency diff and validation output before merging.
           summary_file: ${{ steps.summary_file.outputs.file }}
-          sections_file: ${{ steps.pr_sections.outputs.file }}
+          sections_file: ${{ steps.sections.outputs.file }}
           output_file: /tmp/pr-body.md
 
       - name: Create PR

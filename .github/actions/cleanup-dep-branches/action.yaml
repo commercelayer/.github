@@ -1,0 +1,21 @@
+name: Cleanup dep branches
+description: Delete all remote branches matching a given prefix to avoid stale dep-update branches
+
+inputs:
+  prefix:
+    description: Branch name prefix to match and delete (e.g. chore/deps-update-)
+    required: false
+    default: chore/deps-update-
+
+runs:
+  using: composite
+  steps:
+    - id: cleanup
+      shell: bash
+      run: |
+        set -euo pipefail
+        EXISTING=$(git ls-remote --heads origin "${{ inputs.prefix }}*" | awk '{print $2}' | sed 's|refs/heads/||')
+        for branch in $EXISTING; do
+          echo "Deleting existing branch: $branch"
+          git push origin --delete "$branch"
+        done

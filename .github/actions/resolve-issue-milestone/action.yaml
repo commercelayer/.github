@@ -1,0 +1,37 @@
+name: Resolve issue milestone
+description: Resolve the milestone number already assigned to an existing GitHub issue
+
+inputs:
+  issue_number:
+    description: GitHub issue number to inspect
+    required: true
+
+outputs:
+  number:
+    description: Milestone number assigned to the issue, or empty if none
+    value: ${{ steps.resolve.outputs.number }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is required for this action" >&2
+          exit 1
+        fi
+
+        MILESTONE=$(gh api \
+          "repos/${GITHUB_REPOSITORY}/issues/${{ inputs.issue_number }}" \
+          --jq '.milestone.number // empty')
+
+        echo "number=${MILESTONE}" >> "$GITHUB_OUTPUT"
+
+        if [ -n "$MILESTONE" ]; then
+          echo "Issue #${{ inputs.issue_number }} already has milestone #${MILESTONE}."
+        else
+          echo "Issue #${{ inputs.issue_number }} has no milestone assigned."
+        fi

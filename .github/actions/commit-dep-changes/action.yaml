@@ -1,0 +1,47 @@
+name: Commit dep changes
+description: Stage files, detect changes, and commit with a given message
+
+inputs:
+  files:
+    description: Space-separated list of file patterns to pass to git add
+    required: true
+  message:
+    description: Commit message
+    required: true
+  git_user_name:
+    description: Git committer user name
+    required: false
+    default: commercelayer-ci
+  git_user_email:
+    description: Git committer email
+    required: false
+    default: 85679179+commercelayer-ci@users.noreply.github.com
+
+outputs:
+  changed:
+    description: Whether any changes were committed (true/false)
+    value: ${{ steps.commit.outputs.changed }}
+
+runs:
+  using: composite
+  steps:
+    - id: commit
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        git config user.name "${{ inputs.git_user_name }}"
+        git config user.email "${{ inputs.git_user_email }}"
+
+        set -f  # disable shell glob expansion so git receives patterns verbatim
+        for pattern in ${{ inputs.files }}; do
+          git add "$pattern" 2>/dev/null || true
+        done
+        set +f
+
+        if git diff --cached --quiet; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          git commit -m "${{ inputs.message }}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
