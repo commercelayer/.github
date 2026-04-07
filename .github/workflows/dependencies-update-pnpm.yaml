@@ -325,7 +325,7 @@ jobs:
 
       - name: Ensure dependencies label
         if: ${{ steps.commit.outputs.changed == 'true' }}
-        uses: commercelayer/.github/.github/actions/ensure-label@fix/refinements
+        uses: commercelayer/.github/.github/actions/ensure-label@main
         env:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
         with:
