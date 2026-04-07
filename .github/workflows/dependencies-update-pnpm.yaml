@@ -106,7 +106,7 @@ jobs:
 
       - name: Resolve Node versions
         id: node_versions
-        uses: commercelayer/.github/.github/actions/resolve-node-versions@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/resolve-node-versions@main
         with:
           node_version: ${{ inputs.node_version }}
           pnpm_version: ${{ inputs.pnpm_version }}
@@ -123,10 +123,10 @@ jobs:
 
       - name: Compute branch metadata
         id: branch
-        uses: commercelayer/.github/.github/actions/compute-branch-metadata@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/compute-branch-metadata@main
 
       - name: Delete existing dep-update branches
-        uses: commercelayer/.github/.github/actions/cleanup-dep-branches@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/cleanup-dep-branches@main
 
       - name: Create branch
         shell: bash
@@ -135,7 +135,7 @@ jobs:
 
       - name: Collect semver bump log
         id: semver
-        uses: commercelayer/.github/.github/actions/collect-ncu-report@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/collect-ncu-report@main
         with:
           command: pnpm dlx npm-check-updates --packageFile '**/package.json' -u -t semver
           empty_message: No semver updates found.
@@ -158,7 +158,7 @@ jobs:
       - name: Check
         id: check
         if: ${{ inputs.run_check }}
-        uses: commercelayer/.github/.github/actions/run-guarded@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/run-guarded@main
         with:
           name: pnpm check
           command: pnpm check
@@ -167,7 +167,7 @@ jobs:
       - name: Build
         id: build
         if: ${{ inputs.run_build }}
-        uses: commercelayer/.github/.github/actions/run-guarded@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/run-guarded@main
         with:
           name: pnpm build
           command: pnpm build
@@ -176,7 +176,7 @@ jobs:
       - name: Test
         id: test
         if: ${{ inputs.run_test }}
-        uses: commercelayer/.github/.github/actions/run-guarded@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/run-guarded@main
         with:
           name: pnpm test
           command: pnpm test
@@ -196,7 +196,7 @@ jobs:
 
       - name: Commit changes
         id: commit
-        uses: commercelayer/.github/.github/actions/commit-dep-changes@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/commit-dep-changes@main
         with:
           files: "package.json pnpm-lock.yaml **/package.json"
           message: "chore: update pnpm dependencies"
@@ -204,7 +204,7 @@ jobs:
       - name: Detect prerelease tag
         id: tag
         if: steps.commit.outputs.changed == 'true'
-        uses: commercelayer/.github/.github/actions/detect-prerelease-tag@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/detect-prerelease-tag@main
 
       - name: Create git tag
         if: ${{ steps.commit.outputs.changed == 'true' }}
@@ -220,7 +220,7 @@ jobs:
       - name: Resolve issue milestone
         id: issue_milestone
         if: ${{ inputs.use_milestone && inputs.issue_number != '' }}
-        uses: commercelayer/.github/.github/actions/resolve-issue-milestone@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/resolve-issue-milestone@main
         env:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
         with:
@@ -232,7 +232,7 @@ jobs:
           steps.commit.outputs.changed == 'true' &&
           inputs.use_milestone &&
           steps.issue_milestone.outputs.number == ''
-        uses: commercelayer/.github/.github/actions/shift-milestones@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/shift-milestones@main
         env:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
         with:
@@ -241,7 +241,7 @@ jobs:
       - name: Track major updates not updated by semver bump
         id: major
         if: ${{ steps.commit.outputs.changed == 'true' }}
-        uses: commercelayer/.github/.github/actions/collect-ncu-report@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/collect-ncu-report@main
         with:
           command: pnpm dlx npm-check-updates --packageFile '**/package.json'
           empty_message: No additional major updates found.
@@ -249,7 +249,7 @@ jobs:
 
       - name: Prepare summary
         id: summary
-        uses: commercelayer/.github/.github/actions/render-guarded-summary@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/render-guarded-summary@main
         if: ${{ steps.commit.outputs.changed == 'true' }}
         with:
           check_status: ${{ steps.check.outputs.status }}
@@ -313,7 +313,7 @@ jobs:
       - name: Render issue body
         id: issue_body
         if: ${{ steps.commit.outputs.changed == 'true' && inputs.issue_number == '' }}
-        uses: commercelayer/.github/.github/actions/render-dependency-body@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/render-dependency-body@main
         with:
           title: Dependency update tracking
           header_file: ${{ steps.issue_header.outputs.file }}
@@ -335,7 +335,7 @@ jobs:
       - name: Resolve tracking issue
         id: issue
         if: ${{ steps.commit.outputs.changed == 'true' }}
-        uses: commercelayer/.github/.github/actions/resolve-tracking-issue@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/resolve-tracking-issue@main
         env:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
         with:
@@ -349,7 +349,7 @@ jobs:
           steps.commit.outputs.changed == 'true' &&
           inputs.use_milestone &&
           (steps.milestone.outputs.milestone_number != '' || steps.issue_milestone.outputs.number != '')
-        uses: commercelayer/.github/.github/actions/assign-milestone@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/assign-milestone@main
         env:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
         with:
@@ -374,7 +374,7 @@ jobs:
       - name: Render PR body
         id: pr_body
         if: ${{ steps.commit.outputs.changed == 'true' }}
-        uses: commercelayer/.github/.github/actions/render-dependency-body@fix/improve-milestone-workflow
+        uses: commercelayer/.github/.github/actions/render-dependency-body@main
         with:
           title: Dependency update
           header_file: ${{ steps.pr_header.outputs.file }}
