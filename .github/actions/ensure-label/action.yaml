@@ -1,0 +1,44 @@
+name: Ensure label
+description: Create a label in the repository if it does not already exist
+
+inputs:
+  label:
+    description: Label name to ensure exists
+    required: true
+  color:
+    description: Hex color (without #) used when creating the label
+    required: false
+    default: "0075ca"
+  description:
+    description: Short description used when creating the label
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - id: ensure
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is required for this action" >&2
+          exit 1
+        fi
+
+        LABEL='${{ inputs.label }}'
+        COLOR='${{ inputs.color }}'
+        DESCRIPTION='${{ inputs.description }}'
+
+        if gh label list --repo "${GITHUB_REPOSITORY}" --json name \
+            --jq '.[].name' | grep -qxF "$LABEL"; then
+          echo "Label \"${LABEL}\" already exists — skipping creation."
+        else
+          echo "Label \"${LABEL}\" not found — creating."
+          gh label create "$LABEL" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --color "$COLOR" \
+            --description "$DESCRIPTION"
+          echo "Label \"${LABEL}\" created."
+        fi

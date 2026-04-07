@@ -323,6 +323,15 @@ jobs:
           sections_file: ${{ steps.sections.outputs.file }}
           output_file: /tmp/issue-body.md
 
+      - name: Ensure dependencies label
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        uses: commercelayer/.github/.github/actions/ensure-label@fix/refinements
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          label: dependencies
+          description: Pull requests that update a dependency file
+
       - name: Resolve tracking issue
         id: issue
         if: ${{ steps.commit.outputs.changed == 'true' }}
