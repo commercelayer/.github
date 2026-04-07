@@ -1,0 +1,48 @@
+name: Resolve issue milestone
+description: Resolve the milestone number already assigned to an existing GitHub issue
+
+inputs:
+  issue_number:
+    description: GitHub issue number to inspect
+    required: true
+
+outputs:
+  number:
+    description: Milestone number assigned to the issue, or empty if none
+    value: ${{ steps.resolve.outputs.number }}
+
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is required for this action" >&2
+          exit 1
+        fi
+
+        ISSUE_NUMBER='${{ inputs.issue_number }}'
+
+        if [ -z "$ISSUE_NUMBER" ] || [ "$ISSUE_NUMBER" = "0" ]; then
+          echo "::warning::issue_number is empty or 0 — skipping milestone check."
+          echo "number=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        ERROR_FILE="$(mktemp)"
+        if MILESTONE=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" \
+            --jq '.milestone.number // empty' 2>"$ERROR_FILE"); then
+          echo "number=${MILESTONE}" >> "$GITHUB_OUTPUT"
+          if [ -n "$MILESTONE" ]; then
+            echo "Issue #${ISSUE_NUMBER} already has milestone #${MILESTONE}."
+          else
+            echo "Issue #${ISSUE_NUMBER} has no milestone assigned."
+          fi
+        else
+          echo "::warning::Could not fetch issue #${ISSUE_NUMBER} ($(cat "$ERROR_FILE")) — milestone check skipped."
+          echo "number=" >> "$GITHUB_OUTPUT"
+        fi

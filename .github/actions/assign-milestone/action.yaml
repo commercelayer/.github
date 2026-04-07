@@ -1,0 +1,30 @@
+name: Assign milestone
+description: Assign a milestone to a GitHub issue
+
+inputs:
+  issue_number:
+    description: Issue number to update
+    required: true
+  milestone_number:
+    description: Milestone number to assign
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - id: assign
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is required for this action" >&2
+          exit 1
+        fi
+
+        gh api \
+          --method PATCH \
+          "repos/${GITHUB_REPOSITORY}/issues/${{ inputs.issue_number }}" \
+          -f milestone="${{ inputs.milestone_number }}"
+
+        echo "Assigned milestone #${{ inputs.milestone_number }} to issue #${{ inputs.issue_number }}."
