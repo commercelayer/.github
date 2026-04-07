@@ -223,6 +223,8 @@ jobs:
         uses: commercelayer/.github/.github/actions/resolve-issue-milestone@fix/improve-milestone-workflow
         env:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
+        with:
+          issue_number: ${{ inputs.issue_number }}
 
       - name: Shift colliding milestones
         id: milestone
