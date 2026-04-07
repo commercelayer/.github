@@ -24,14 +24,25 @@ runs:
           exit 1
         fi
 
-        MILESTONE=$(gh api \
-          "repos/${GITHUB_REPOSITORY}/issues/${{ inputs.issue_number }}" \
-          --jq '.milestone.number // empty')
+        ISSUE_NUMBER='${{ inputs.issue_number }}'
 
-        echo "number=${MILESTONE}" >> "$GITHUB_OUTPUT"
+        if [ -z "$ISSUE_NUMBER" ] || [ "$ISSUE_NUMBER" = "0" ]; then
+          echo "::warning::issue_number is empty or 0 — skipping milestone check."
+          echo "number=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
 
-        if [ -n "$MILESTONE" ]; then
-          echo "Issue #${{ inputs.issue_number }} already has milestone #${MILESTONE}."
+        ERROR_FILE="$(mktemp)"
+        if MILESTONE=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" \
+            --jq '.milestone.number // empty' 2>"$ERROR_FILE"); then
+          echo "number=${MILESTONE}" >> "$GITHUB_OUTPUT"
+          if [ -n "$MILESTONE" ]; then
+            echo "Issue #${ISSUE_NUMBER} already has milestone #${MILESTONE}."
+          else
+            echo "Issue #${ISSUE_NUMBER} has no milestone assigned."
+          fi
         else
-          echo "Issue #${{ inputs.issue_number }} has no milestone assigned."
+          echo "::warning::Could not fetch issue #${ISSUE_NUMBER} ($(cat "$ERROR_FILE")) — milestone check skipped."
+          echo "number=" >> "$GITHUB_OUTPUT"
         fi
