@@ -390,7 +390,6 @@ jobs:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
         run: |
           gh pr create \
-            --base main \
             --head "${{ steps.branch.outputs.name }}" \
             --title "pnpm dependency update ${{ steps.branch.outputs.date }}" \
             --body-file "${{ steps.pr_body.outputs.file }}" \
