@@ -38,6 +38,11 @@ on:
         required: false
         default: true
         type: boolean
+      use_tags:
+        description: Create and push git tags
+        required: false
+        default: true
+        type: boolean
       issue_number:
         description: Existing issue number to reuse
         required: false
@@ -81,20 +86,24 @@ on:
         required: false
         default: true
         type: boolean
+      use_tags:
+        description: Create and push git tags
+        required: false
+        default: true
+        type: boolean
       issue_number:
         description: Existing issue number to reuse
         required: false
         default: ""
         type: string
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-
 jobs:
   dependencies-update-pnpm:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
 
     steps:
       - name: Checkout main
@@ -207,7 +216,7 @@ jobs:
         uses: commercelayer/.github/.github/actions/detect-prerelease-tag@main
 
       - name: Create git tag
-        if: ${{ steps.commit.outputs.changed == 'true' }}
+        if: ${{ steps.commit.outputs.changed == 'true' && inputs.use_tags }}
         run: |
           git tag "${{ steps.tag.outputs.name }}"
 
@@ -215,7 +224,9 @@ jobs:
         if: ${{ steps.commit.outputs.changed == 'true' }}
         run: |
           git push origin "${{ steps.branch.outputs.name }}"
-          git push origin "${{ steps.tag.outputs.name }}"
+          if [[ "${{ inputs.use_tags }}" == "true" ]]; then
+            git push origin "${{ steps.tag.outputs.name }}"
+          fi
 
       - name: Resolve issue milestone
         id: issue_milestone
@@ -277,7 +288,7 @@ jobs:
           cat > /tmp/pnpm-issue-header.md <<EOF
           **Date:** \`${{ steps.branch.outputs.date }}\`
           **Branch:** \`${{ steps.branch.outputs.name }}\`
-          **Prerelease tag:** \`${{ steps.tag.outputs.name }}\`
+          **Prerelease tag:** \`${{ inputs.use_tags && steps.tag.outputs.name || 'skipped' }}\`
           **Node.js:** \`${{ steps.node_versions.outputs.node_version }}\`
           **pnpm:** \`${{ steps.node_versions.outputs.pnpm_version }}\`
           EOF
@@ -365,7 +376,7 @@ jobs:
           **Related to ${{ steps.issue.outputs.url }}**
           **Branch:** \`${{ steps.branch.outputs.name }}\`
           **Based on stable:** \`${{ steps.tag.outputs.stable }}\`
-          **Prerelease tag:** \`${{ steps.tag.outputs.name }}\`
+          **Prerelease tag:** \`${{ inputs.use_tags && steps.tag.outputs.name || 'skipped' }}\`
           **Node.js:** \`${{ steps.node_versions.outputs.node_version }}\`
           **pnpm:** \`${{ steps.node_versions.outputs.pnpm_version }}\`
           EOF
