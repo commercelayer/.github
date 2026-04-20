@@ -373,7 +373,7 @@ jobs:
         shell: bash
         run: |
           cat > /tmp/pnpm-pr-header.md <<EOF
-          **Related to ${{ steps.issue.outputs.url }}**
+          **Closes ${{ steps.issue.outputs.url }}**
           **Branch:** \`${{ steps.branch.outputs.name }}\`
           **Based on stable:** \`${{ steps.tag.outputs.stable }}\`
           **Prerelease tag:** \`${{ inputs.use_tags && steps.tag.outputs.name || 'skipped' }}\`
