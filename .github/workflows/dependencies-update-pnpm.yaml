@@ -227,13 +227,15 @@ jobs:
           if [[ "${{ inputs.use_tags }}" == "true" ]]; then
             git push origin "${{ steps.tag.outputs.name }}"
           fi
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
 
       - name: Resolve issue milestone
         id: issue_milestone
         if: ${{ inputs.use_milestone && inputs.issue_number != '' }}
         uses: commercelayer/.github/.github/actions/resolve-issue-milestone@main
         env:
-          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
         with:
           issue_number: ${{ inputs.issue_number }}
 
@@ -338,7 +340,7 @@ jobs:
         if: ${{ steps.commit.outputs.changed == 'true' }}
         uses: commercelayer/.github/.github/actions/ensure-label@main
         env:
-          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
         with:
           label: dependencies
           description: Pull requests that update a dependency file
@@ -348,7 +350,7 @@ jobs:
         if: ${{ steps.commit.outputs.changed == 'true' }}
         uses: commercelayer/.github/.github/actions/resolve-tracking-issue@main
         env:
-          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
         with:
           issue_number: ${{ inputs.issue_number }}
           title: pnpm dependency update ${{ steps.branch.outputs.date }}
@@ -362,7 +364,7 @@ jobs:
           (steps.milestone.outputs.milestone_number != '' || steps.issue_milestone.outputs.number != '')
         uses: commercelayer/.github/.github/actions/assign-milestone@main
         env:
-          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN || secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
         with:
           issue_number: ${{ steps.issue.outputs.number }}
           milestone_number: ${{ steps.milestone.outputs.milestone_number != '' && steps.milestone.outputs.milestone_number || steps.issue_milestone.outputs.number }}
