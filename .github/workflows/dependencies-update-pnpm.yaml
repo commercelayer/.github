@@ -369,6 +369,15 @@ jobs:
           issue_number: ${{ steps.issue.outputs.number }}
           milestone_number: ${{ steps.milestone.outputs.milestone_number != '' && steps.milestone.outputs.milestone_number || steps.issue_milestone.outputs.number }}
 
+      - name: Assign project to issue
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        uses: commercelayer/.github/.github/actions/assign-project@feat/add-project-assignment
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+        with:
+          issue_number: ${{ steps.issue.outputs.number }}
+          project_number: 60 # Commerce Layer ongoing project
+
       - name: Prepare PR header
         id: pr_header
         if: ${{ steps.commit.outputs.changed == 'true' }}

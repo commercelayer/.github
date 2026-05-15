@@ -1,0 +1,90 @@
+name: Assign project
+description: Assign an existing GitHub Projects v2 project to an issue
+
+inputs:
+  issue_number:
+    description: Issue number to add to the project
+    required: true
+  project_number:
+    description: Project number (numeric ID from the project URL)
+    required: true
+  owner:
+    description: Organization or user owning the project (defaults to the repository owner)
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - id: assign
+      shell: bash
+      env:
+        INPUT_OWNER: ${{ inputs.owner }}
+      run: |
+        set -euo pipefail
+
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "GH_TOKEN is required for this action" >&2
+          exit 1
+        fi
+
+        ISSUE_NUMBER='${{ inputs.issue_number }}'
+        PROJECT_NUMBER='${{ inputs.project_number }}'
+        OWNER="${INPUT_OWNER:-${GITHUB_REPOSITORY_OWNER}}"
+
+        # Resolve the project node ID from its number
+        PROJECT_ID=$(gh api graphql \
+          -f owner="$OWNER" \
+          -F number="$PROJECT_NUMBER" \
+          -f query='
+            query($owner: String!, $number: Int!) {
+              organization(login: $owner) {
+                projectV2(number: $number) { id }
+              }
+            }
+          ' \
+          --jq '.data.organization.projectV2.id // empty')
+
+        # Fall back to user-owned project if org lookup returned nothing
+        if [ -z "$PROJECT_ID" ]; then
+          PROJECT_ID=$(gh api graphql \
+            -f owner="$OWNER" \
+            -F number="$PROJECT_NUMBER" \
+            -f query='
+              query($owner: String!, $number: Int!) {
+                user(login: $owner) {
+                  projectV2(number: $number) { id }
+                }
+              }
+            ' \
+            --jq '.data.user.projectV2.id // empty')
+        fi
+
+        if [ -z "$PROJECT_ID" ]; then
+          echo "Could not find project #${PROJECT_NUMBER} for owner '${OWNER}'" >&2
+          exit 1
+        fi
+
+        # Resolve the issue node ID
+        ISSUE_ID=$(gh api \
+          "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}" \
+          --jq '.node_id')
+
+        if [ -z "$ISSUE_ID" ]; then
+          echo "Could not find issue #${ISSUE_NUMBER} in ${GITHUB_REPOSITORY}" >&2
+          exit 1
+        fi
+
+        # Add the issue to the project
+        gh api graphql \
+          -f projectId="$PROJECT_ID" \
+          -f contentId="$ISSUE_ID" \
+          -f query='
+            mutation($projectId: ID!, $contentId: ID!) {
+              addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
+                item { id }
+              }
+            }
+          ' > /dev/null
+
+        echo "Assigned issue #${ISSUE_NUMBER} to project #${PROJECT_NUMBER}."
