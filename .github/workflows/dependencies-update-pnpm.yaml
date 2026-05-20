@@ -48,6 +48,11 @@ on:
         required: false
         default: ""
         type: string
+      project_number:
+        description: Project number to assign the issue to (numeric ID from the project URL)
+        required: false
+        default: ""
+        type: string
 
   workflow_call:
     inputs:
@@ -96,6 +101,12 @@ on:
         required: false
         default: ""
         type: string
+      project_number:
+        description: Project number to assign the issue to (numeric ID from the project URL)
+        required: false
+        default: ""
+        type: string
+
 
 jobs:
   dependencies-update-pnpm:
@@ -376,7 +387,7 @@ jobs:
           GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
         with:
           issue_number: ${{ steps.issue.outputs.number }}
-          project_number: 60 # Commerce Layer ongoing project
+          project_number: ${{ inputs.project_number != '' && inputs.project_number || 60 }} # Commerce Layer ongoing project
 
       - name: Prepare PR header
         id: pr_header
