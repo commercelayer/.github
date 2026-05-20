@@ -115,6 +115,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      project: read
 
     steps:
       - name: Checkout main
