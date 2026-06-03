@@ -146,7 +146,7 @@ jobs:
         id: semver
         uses: commercelayer/.github/.github/actions/collect-ncu-report@main
         with:
-          command: pnpm dlx npm-check-updates --packageFile '**/package.json' -u -t semver
+          command: pnpm dlx npm-check-updates --packageFile '**/package.json' -u -t semver -c 1d
           empty_message: No semver updates found.
           output_file: /tmp/pnpm-semver.log
 
