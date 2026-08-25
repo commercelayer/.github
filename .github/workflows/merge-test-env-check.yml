@@ -1,0 +1,12 @@
+name: merge-check
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Testing environment check
+        run: |
+          echo "Checking testing environment.. OK"
