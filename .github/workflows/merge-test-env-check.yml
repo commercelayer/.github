@@ -1,8 +1,9 @@
-name: merge-check
+name: merge-test-env-check
 on:
   pull_request:
     branches:
       - main
+      - master
 jobs:
   test:
     runs-on: ubuntu-latest
