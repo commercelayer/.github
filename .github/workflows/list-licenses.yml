@@ -1,0 +1,10 @@
+name: list-licenses
+on:
+  workflow_call:
+jobs:
+  test:
+    runs-on: ubuntu-slim
+    steps:
+      - name: Listing licenses
+        run: |
+          find . -type f -iname '*license*' -exec grep -iE '^\s*\S+\s+license\s*$' {} \; | sed -r 's/^\s*(.+)/\L\1/' | sort -u
