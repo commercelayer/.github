@@ -5,9 +5,5 @@ on:
       - main
       - master
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Testing environment check
-        run: |
-          echo "Checking testing environment.. OK"
+  call-workflow:
+    uses: commercelayer/.github/.github/workflows/list-licenses.yml@main
