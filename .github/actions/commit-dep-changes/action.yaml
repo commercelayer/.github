@@ -5,6 +5,9 @@ inputs:
   files:
     description: Space-separated list of file patterns to pass to git add
     required: true
+  patterns_from_file:
+    description: Path to a multiline text file containing a list of file patterns, to protect spaces and special characters
+    required: false
   message:
     description: Commit message
     required: true
@@ -38,6 +41,12 @@ runs:
           git add "$pattern" 2>/dev/null || true
         done
         set +f
+
+        if [ -f "${{ inputs.patterns_from_file }}" ]; then
+          while IFS="" read -r pattern || [ -n "$pattern" ]; do
+            git add "$pattern" 2>/dev/null || true
+          done <"${{ inputs.patterns_from_file }}"
+        fi        
 
         if git diff --cached --quiet; then
           echo "changed=false" >> "$GITHUB_OUTPUT"
