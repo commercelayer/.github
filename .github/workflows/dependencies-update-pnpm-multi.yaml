@@ -1,0 +1,447 @@
+name: Dependencies update - pnpm
+
+on:
+  workflow_dispatch:
+    inputs:
+      node_version:
+        description: Node.js version
+        required: false
+        default: ""
+        type: string
+      pnpm_version:
+        description: pnpm version
+        required: false
+        default: ""
+        type: string
+      run_check:
+        description: Run pnpm check step
+        required: false
+        default: true
+        type: boolean
+      run_build:
+        description: Run pnpm build step
+        required: false
+        default: true
+        type: boolean
+      run_test:
+        description: Run pnpm test step
+        required: false
+        default: true
+        type: boolean
+      reviewers:
+        description: GitHub reviewers
+        required: false
+        default: "malessani,gciotola"
+        type: string
+      use_milestone:
+        description: Use milestones
+        required: false
+        default: true
+        type: boolean
+      use_tags:
+        description: Create and push git tags
+        required: false
+        default: true
+        type: boolean
+      issue_number:
+        description: Existing issue number to reuse
+        required: false
+        default: ""
+        type: string
+
+  workflow_call:
+    inputs:
+      node_version:
+        description: Node.js version
+        required: false
+        default: ""
+        type: string
+      pnpm_version:
+        description: pnpm version
+        required: false
+        default: ""
+        type: string
+      run_check:
+        description: Run pnpm check step
+        required: false
+        default: true
+        type: boolean
+      run_build:
+        description: Run pnpm build step
+        required: false
+        default: true
+        type: boolean
+      run_test:
+        description: Run pnpm test step
+        required: false
+        default: true
+        type: boolean
+      reviewers:
+        description: GitHub reviewers
+        required: false
+        default: "malessani,gciotola"
+        type: string
+      use_milestone:
+        description: Use milestones
+        required: false
+        default: true
+        type: boolean
+      use_tags:
+        description: Create and push git tags
+        required: false
+        default: true
+        type: boolean
+      issue_number:
+        description: Existing issue number to reuse
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  dependencies-update-pnpm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+          persist-credentials: true
+
+      - name: Resolve Node versions
+        id: node_versions
+        uses: commercelayer/.github/.github/actions/resolve-node-versions@main
+        with:
+          node_version: ${{ inputs.node_version }}
+          pnpm_version: ${{ inputs.pnpm_version }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ steps.node_versions.outputs.node_version }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: ${{ steps.node_versions.outputs.pnpm_version }}
+
+      - name: Compute branch metadata
+        id: branch
+        uses: commercelayer/.github/.github/actions/compute-branch-metadata@main
+
+      - name: Delete existing dep-update branches
+        uses: commercelayer/.github/.github/actions/cleanup-dep-branches@main
+
+      - name: Create branch
+        shell: bash
+        run: |
+          git switch -c "${{ steps.branch.outputs.name }}"
+
+      - name: Collect semver bump log
+        id: semver
+        uses: commercelayer/.github/.github/actions/collect-ncu-report@main
+        with:
+          command: pnpm dlx npm-check-updates --packageFile '**/package.json' -u -t semver -c 1d
+          empty_message: No semver updates found.
+          output_file: /tmp/pnpm-semver.log
+
+      - name: Clean node_modules and lockfile
+        shell: bash
+        run: |
+          find . -type d -exec test -f "{}/package.json" -a -f "{}/pnpm-lock.yaml" \; -print > "$RUNNER_TEMP/roots.list"
+          find . -type f -name package.json -o -name pnpm-lock.yaml > "$RUNNER_TEMP/patterns.list"
+          
+          while IFS="" read -r R || [ -n "$R" ]; do
+            pushd "$R"
+            if jq -e '.scripts.clean' package.json > /dev/null 2>&1; then
+              pnpm clean
+            else
+              pnpm dlx rimraf --glob '**/node_modules' '**/pnpm-lock.yaml'
+            fi
+            popd
+          done <"$RUNNER_TEMP/roots.list"
+
+      - name: Install packages
+        shell: bash
+        run: |
+          while IFS="" read -r R || [ -n "$R" ]; do
+            pushd "$R"
+            pnpm install
+            popd
+          done <"$RUNNER_TEMP/roots.list"
+
+      - name: Check
+        id: check
+        if: ${{ inputs.run_check }}
+        uses: commercelayer/.github/.github/actions/run-guarded@main
+        with:
+          name: pnpm check
+          command: |
+            while IFS="" read -r R || [ -n "$R" ]; do
+              pushd "$R"
+              pnpm check
+              popd
+            done <"$RUNNER_TEMP/roots.list"
+          log_file: /tmp/check.log
+
+      - name: Build
+        id: build
+        if: ${{ inputs.run_build }}
+        uses: commercelayer/.github/.github/actions/run-guarded@main
+        with:
+          name: pnpm build
+          command: |
+            while IFS="" read -r R || [ -n "$R" ]; do
+              pushd "$R"
+              pnpm build
+              popd
+            done <"$RUNNER_TEMP/roots.list"
+          log_file: /tmp/build.log
+
+      - name: Test
+        id: test
+        if: ${{ inputs.run_test }}
+        uses: commercelayer/.github/.github/actions/run-guarded@main
+        with:
+          name: pnpm test
+          command: |
+            while IFS="" read -r R || [ -n "$R" ]; do
+              pushd "$R"
+              pnpm test
+              popd
+            done <"$RUNNER_TEMP/roots.list"
+          log_file: /tmp/test.log
+
+      - name: Audit vulnerabilities
+        id: audit
+        shell: bash
+        run: |
+          while IFS="" read -r R || [ -n "$R" ]; do
+            pushd "$R"
+            OUTPUT="$(pnpm audit 2>&1 || true)"
+            echo "$OUTPUT"
+            {
+              echo "output<<EOF"
+              echo "$OUTPUT"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            popd
+          done <"$RUNNER_TEMP/roots.list"
+
+      - name: Commit changes
+        id: commit
+        uses: commercelayer/.github/.github/actions/commit-dep-changes@main
+        with:
+          files: "**/package.json"
+          patterns_from_file: "$RUNNER_TEMP/patterns.list"
+          message: "chore: update pnpm dependencies"
+
+      - name: Detect prerelease tag
+        id: tag
+        if: steps.commit.outputs.changed == 'true'
+        uses: commercelayer/.github/.github/actions/detect-prerelease-tag@main
+
+      - name: Create git tag
+        if: ${{ steps.commit.outputs.changed == 'true' && inputs.use_tags }}
+        run: |
+          git tag "${{ steps.tag.outputs.name }}"
+
+      - name: Push branch and tag
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        run: |
+          git push origin "${{ steps.branch.outputs.name }}"
+          if [[ "${{ inputs.use_tags }}" == "true" ]]; then
+            git push origin "${{ steps.tag.outputs.name }}"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+
+      - name: Resolve issue milestone
+        id: issue_milestone
+        if: ${{ inputs.use_milestone && inputs.issue_number != '' }}
+        uses: commercelayer/.github/.github/actions/resolve-issue-milestone@main
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+        with:
+          issue_number: ${{ inputs.issue_number }}
+
+      - name: Shift colliding milestones
+        id: milestone
+        if: |
+          steps.commit.outputs.changed == 'true' &&
+          inputs.use_milestone &&
+          steps.issue_milestone.outputs.number == ''
+        uses: commercelayer/.github/.github/actions/shift-milestones@main
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+        with:
+          target_version: ${{ steps.tag.outputs.base_version }}
+
+      - name: Track major updates not updated by semver bump
+        id: major
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        uses: commercelayer/.github/.github/actions/collect-ncu-report@main
+        with:
+          command: pnpm dlx npm-check-updates --packageFile '**/package.json'
+          empty_message: No additional major updates found.
+          output_file: /tmp/pnpm-major.log
+
+      - name: Prepare summary
+        id: summary
+        uses: commercelayer/.github/.github/actions/render-guarded-summary@main
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        with:
+          check_status: ${{ steps.check.outputs.status }}
+          check_log_file: ${{ steps.check.outputs.log_file }}
+          build_status: ${{ steps.build.outputs.status }}
+          build_log_file: ${{ steps.build.outputs.log_file }}
+          test_status: ${{ steps.test.outputs.status }}
+          test_log_file: ${{ steps.test.outputs.log_file }}
+
+      - name: Prepare summary file
+        id: summary_file
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        shell: bash
+        run: |
+          cat > /tmp/dependency-summary.md <<EOF
+          ${{ steps.summary.outputs.body }}
+          EOF
+          echo "file=/tmp/dependency-summary.md" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare issue header
+        id: issue_header
+        if: ${{ steps.commit.outputs.changed == 'true' && inputs.issue_number == '' }}
+        shell: bash
+        run: |
+          cat > /tmp/pnpm-issue-header.md <<EOF
+          **Date:** \`${{ steps.branch.outputs.date }}\`
+          **Branch:** \`${{ steps.branch.outputs.name }}\`
+          **Prerelease tag:** \`${{ inputs.use_tags && steps.tag.outputs.name || 'skipped' }}\`
+          **Node.js:** \`${{ steps.node_versions.outputs.node_version }}\`
+          **pnpm:** \`${{ steps.node_versions.outputs.pnpm_version }}\`
+          EOF
+          echo "file=/tmp/pnpm-issue-header.md" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare sections
+        id: sections
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        shell: bash
+        run: |
+          cat > /tmp/pnpm-sections.md <<EOF
+          ### Semver bump log
+
+          \`\`\`
+          $(cat /tmp/pnpm-semver.log)
+          \`\`\`
+
+          ### Audit log
+
+          \`\`\`
+          ${{ steps.audit.outputs.output }}
+          \`\`\`
+
+          ### Major updates log not updated
+
+          \`\`\`
+          $(cat /tmp/pnpm-major.log)
+          \`\`\`
+
+          EOF
+          echo "file=/tmp/pnpm-sections.md" >> "$GITHUB_OUTPUT"
+
+      - name: Render issue body
+        id: issue_body
+        if: ${{ steps.commit.outputs.changed == 'true' && inputs.issue_number == '' }}
+        uses: commercelayer/.github/.github/actions/render-dependency-body@main
+        with:
+          title: Dependency update tracking
+          header_file: ${{ steps.issue_header.outputs.file }}
+          intro_markdown: |
+            This issue tracks the automated dependency update. It will be closed automatically when the linked PR is merged.
+          summary_file: ${{ steps.summary_file.outputs.file }}
+          sections_file: ${{ steps.sections.outputs.file }}
+          output_file: /tmp/issue-body.md
+
+      - name: Ensure dependencies label
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        uses: commercelayer/.github/.github/actions/ensure-label@main
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+        with:
+          label: dependencies
+          description: Pull requests that update a dependency file
+
+      - name: Resolve tracking issue
+        id: issue
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        uses: commercelayer/.github/.github/actions/resolve-tracking-issue@main
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+        with:
+          issue_number: ${{ inputs.issue_number }}
+          title: pnpm dependency update ${{ steps.branch.outputs.date }}
+          body_file: ${{ steps.issue_body.outputs.file }}
+          labels: dependencies
+
+      - name: Assign milestone to issue
+        if: |
+          steps.commit.outputs.changed == 'true' &&
+          inputs.use_milestone &&
+          (steps.milestone.outputs.milestone_number != '' || steps.issue_milestone.outputs.number != '')
+        uses: commercelayer/.github/.github/actions/assign-milestone@main
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+        with:
+          issue_number: ${{ steps.issue.outputs.number }}
+          milestone_number: ${{ steps.milestone.outputs.milestone_number != '' && steps.milestone.outputs.milestone_number || steps.issue_milestone.outputs.number }}
+
+      - name: Prepare PR header
+        id: pr_header
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        shell: bash
+        run: |
+          cat > /tmp/pnpm-pr-header.md <<EOF
+          **Closes ${{ steps.issue.outputs.url }}**
+          **Branch:** \`${{ steps.branch.outputs.name }}\`
+          **Based on stable:** \`${{ steps.tag.outputs.stable }}\`
+          **Prerelease tag:** \`${{ inputs.use_tags && steps.tag.outputs.name || 'skipped' }}\`
+          **Node.js:** \`${{ steps.node_versions.outputs.node_version }}\`
+          **pnpm:** \`${{ steps.node_versions.outputs.pnpm_version }}\`
+          EOF
+          echo "file=/tmp/pnpm-pr-header.md" >> "$GITHUB_OUTPUT"
+
+      - name: Render PR body
+        id: pr_body
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        uses: commercelayer/.github/.github/actions/render-dependency-body@main
+        with:
+          title: Dependency update
+          header_file: ${{ steps.pr_header.outputs.file }}
+          intro_markdown: |
+            Automated dependency update via pnpm. Review the dependency diff and validation output before merging.
+          summary_file: ${{ steps.summary_file.outputs.file }}
+          sections_file: ${{ steps.sections.outputs.file }}
+          output_file: /tmp/pr-body.md
+
+      - name: Create PR
+        if: ${{ steps.commit.outputs.changed == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.COMMERCELAYER_CI_TOKEN }}
+        run: |
+          if [ -n "$(find /tmp/pr-body.md -type f -size +63k)" ]; then
+            truncate -s 63KB /tmp/pr-body.md
+            echo -e "\n\n...truncated..." >>/tmp/pr-body.md
+          fi
+          
+          gh pr create \
+            --head "${{ steps.branch.outputs.name }}" \
+            --title "pnpm dependency update ${{ steps.branch.outputs.date }}" \
+            --body-file "${{ steps.pr_body.outputs.file }}" \
+            --assignee "commercelayer-ci" \
+            --label "dependencies" \
+            --reviewer "${{ inputs.reviewers }}"
