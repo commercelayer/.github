@@ -153,15 +153,15 @@ jobs:
       - name: Clean node_modules and lockfile
         shell: bash
         run: |
-          find . -type d -exec test -f "{}/package.json" -a -f "{}/pnpm-lock.yaml" \; -print > "$RUNNER_TEMP/roots.list"
-          find . -type f -name package.json -o -name pnpm-lock.yaml > "$RUNNER_TEMP/patterns.list"
+          find . -type d -exec test -f "{}/package.json" \; -exec test -f "{}/package-lock.json" -o -f "{}/pnpm-lock.yaml" \; -print > "$RUNNER_TEMP/roots.list"
+          find . -type f -name package.json -o -name package-lock.json -o -name pnpm-lock.yaml > "$RUNNER_TEMP/patterns.list"
           
           while IFS="" read -r R || [ -n "$R" ]; do
             pushd "$R"
             if jq -e '.scripts.clean' package.json > /dev/null 2>&1; then
               pnpm clean
             else
-              pnpm dlx rimraf --glob '**/node_modules' '**/pnpm-lock.yaml'
+              pnpm dlx rimraf --glob '**/node_modules' '**/pnpm-lock.yaml' '**/package-lock.json'
             fi
             popd
           done <"$RUNNER_TEMP/roots.list"
