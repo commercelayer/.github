@@ -366,6 +366,14 @@ jobs:
           summary_file: ${{ steps.summary_file.outputs.file }}
           sections_file: ${{ steps.sections.outputs.file }}
           output_file: /tmp/issue-body.md
+          
+      - name: Truncate issue's body if needed
+        if: ${{ steps.commit.outputs.changed == 'true' && inputs.issue_number == '' }}
+        run: |
+          if [ -n "$(find "${{ steps.issue_body.outputs.file }}" -type f -size +63k)" ]; then
+            truncate -s 63KB "${{ steps.issue_body.outputs.file }}"
+            echo -e "\n\n...truncated..." >>"${{ steps.issue_body.outputs.file }}"
+          fi
 
       - name: Ensure dependencies label
         if: ${{ steps.commit.outputs.changed == 'true' }}
@@ -387,14 +395,6 @@ jobs:
           title: pnpm dependency update ${{ steps.branch.outputs.date }}
           body_file: ${{ steps.issue_body.outputs.file }}
           labels: dependencies
-          
-      - name: Truncate issue's body if needed
-        if: ${{ steps.commit.outputs.changed == 'true' }}
-        run: |
-          if [ -n "$(find ${{ steps.issue_body.outputs.file }} -type f -size +63k)" ]; then
-            truncate -s 63KB /${{ steps.issue_body.outputs.file }}
-            echo -e "\n\n...truncated..." >>${{ steps.issue_body.outputs.file }}
-          fi
             
       - name: Assign milestone to issue
         if: |
