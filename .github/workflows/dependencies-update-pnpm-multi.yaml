@@ -243,7 +243,7 @@ jobs:
 
       - name: Detect prerelease tag
         id: tag
-        if: steps.commit.outputs.changed == 'true'
+        if: ${{ steps.commit.outputs.changed == 'true' && inputs.use_tags }}
         uses: commercelayer/.github/.github/actions/detect-prerelease-tag@main
 
       - name: Create git tag
